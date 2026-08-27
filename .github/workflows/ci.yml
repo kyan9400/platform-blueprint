@@ -66,15 +66,7 @@ jobs:
       - name: Check Terraform formatting
         run: terraform fmt -check -recursive infrastructure/terraform
 
-      - name: Initialize Terraform without a backend
-        working-directory: infrastructure/terraform/aws-eks
-        run: terraform init -backend=false -input=false
-
-      - name: Validate Terraform
-        working-directory: infrastructure/terraform/aws-eks
-        run: terraform validate
-
-      - name: Scan infrastructure configuration
+      - name: Scan owned infrastructure configuration
         uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25  # v0.36.0
         with:
           exit-code: "1"
@@ -82,6 +74,15 @@ jobs:
           scan-ref: .
           scan-type: config
           severity: CRITICAL
+          skip-dirs: "**/.terraform"
+
+      - name: Initialize Terraform without a backend
+        working-directory: infrastructure/terraform/aws-eks
+        run: terraform init -backend=false -input=false
+
+      - name: Validate Terraform
+        working-directory: infrastructure/terraform/aws-eks
+        run: terraform validate
 
       - name: Upload rendered evidence
         if: always()
