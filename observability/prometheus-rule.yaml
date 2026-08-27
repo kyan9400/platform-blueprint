@@ -1,0 +1,45 @@
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: podinfo-slo
+  namespace: monitoring
+  labels:
+    release: kube-prometheus-stack
+spec:
+  groups:
+    - name: podinfo.sli
+      interval: 30s
+      rules:
+        - expr: >-
+            sum(rate(http_requests_total{namespace="platform-demo"}[5m]))
+          record: podinfo:http_requests:rate5m
+        - expr: >-
+            sum(rate(http_requests_total{namespace="platform-demo",status=~"5.."}[5m]))
+            /
+            clamp_min(sum(rate(http_requests_total{namespace="platform-demo"}[5m])), 0.001)
+          record: podinfo:http_errors:ratio5m
+        - expr: >-
+            histogram_quantile(0.99,
+              sum(rate(http_request_duration_seconds_bucket{namespace="platform-demo"}[5m])) by (le)
+            )
+          record: podinfo:http_request_duration:p99_5m
+    - name: podinfo.alerts
+      rules:
+        - alert: PodinfoHighErrorRate
+          annotations:
+            description: More than 1% of Podinfo requests returned 5xx for ten minutes.
+            runbook_url: https://github.com/kyan9400/platform-blueprint/blob/main/docs/runbooks/canary-rollback.md
+            summary: Podinfo error budget is burning too quickly
+          expr: podinfo:http_errors:ratio5m > 0.01
+          for: 10m
+          labels:
+            severity: page
+        - alert: PodinfoHighP99Latency
+          annotations:
+            description: Podinfo p99 latency exceeded 500 ms for ten minutes.
+            runbook_url: https://github.com/kyan9400/platform-blueprint/blob/main/docs/runbooks/canary-rollback.md
+            summary: Podinfo tail latency is above the release threshold
+          expr: podinfo:http_request_duration:p99_5m > 0.5
+          for: 10m
+          labels:
+            severity: ticket

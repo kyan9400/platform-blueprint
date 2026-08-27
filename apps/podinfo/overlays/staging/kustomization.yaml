@@ -1,0 +1,23 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - ../../base
+patches:
+  - target:
+      group: helm.toolkit.fluxcd.io
+      kind: HelmRelease
+      name: podinfo
+      version: v2
+    patch: |-
+      - op: replace
+        path: /spec/values/ui/message
+        value: Staging
+  - target:
+      group: networking.k8s.io
+      kind: Ingress
+      name: podinfo
+      version: v1
+    patch: |-
+      - op: replace
+        path: /spec/rules/0/host
+        value: staging.platform.example.com

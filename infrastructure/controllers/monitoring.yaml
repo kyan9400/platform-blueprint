@@ -1,0 +1,75 @@
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: kube-prometheus-stack
+  namespace: monitoring
+spec:
+  chart:
+    spec:
+      chart: kube-prometheus-stack
+      sourceRef:
+        kind: HelmRepository
+        name: prometheus-community
+        namespace: flux-system
+      version: 88.5.4
+  install:
+    crds: CreateReplace
+    remediation:
+      retries: 3
+  interval: 30m
+  releaseName: kube-prometheus-stack
+  upgrade:
+    cleanupOnFail: true
+    crds: CreateReplace
+    remediation:
+      retries: 3
+  values:
+    alertmanager:
+      alertmanagerSpec:
+        resources:
+          limits:
+            cpu: 200m
+            memory: 256Mi
+          requests:
+            cpu: 50m
+            memory: 128Mi
+    grafana:
+      enabled: true
+      defaultDashboardsEnabled: true
+      grafana.ini:
+        auth.anonymous:
+          enabled: true
+          org_role: Viewer
+        auth.disable_login_form: true
+      resources:
+        limits:
+          cpu: 300m
+          memory: 384Mi
+        requests:
+          cpu: 50m
+          memory: 128Mi
+      sidecar:
+        dashboards:
+          enabled: true
+          searchNamespace: ALL
+    prometheus:
+      prometheusSpec:
+        enableAdminAPI: false
+        retention: 24h
+        resources:
+          limits:
+            cpu: "1"
+            memory: 1Gi
+          requests:
+            cpu: 200m
+            memory: 512Mi
+        ruleSelectorNilUsesHelmValues: false
+        serviceMonitorSelectorNilUsesHelmValues: false
+    prometheusOperator:
+      resources:
+        limits:
+          cpu: 300m
+          memory: 256Mi
+        requests:
+          cpu: 100m
+          memory: 128Mi

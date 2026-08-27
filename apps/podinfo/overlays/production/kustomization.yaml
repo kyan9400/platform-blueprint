@@ -1,0 +1,53 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - ../../base
+patches:
+  - target:
+      group: helm.toolkit.fluxcd.io
+      kind: HelmRelease
+      name: podinfo
+      version: v2
+    patch: |-
+      - op: replace
+        path: /spec/values/replicaCount
+        value: 3
+      - op: replace
+        path: /spec/values/ui/message
+        value: Production
+  - target:
+      group: flagger.app
+      kind: Canary
+      name: podinfo
+      version: v1beta1
+    patch: |-
+      - op: replace
+        path: /spec/analysis/interval
+        value: 1m
+      - op: replace
+        path: /spec/analysis/maxWeight
+        value: 20
+      - op: replace
+        path: /spec/analysis/stepWeight
+        value: 5
+      - op: replace
+        path: /spec/analysis/threshold
+        value: 3
+  - target:
+      group: networking.k8s.io
+      kind: Ingress
+      name: podinfo
+      version: v1
+    patch: |-
+      - op: replace
+        path: /spec/rules/0/host
+        value: platform.example.com
+  - target:
+      group: policy
+      kind: PodDisruptionBudget
+      name: podinfo
+      version: v1
+    patch: |-
+      - op: replace
+        path: /spec/minAvailable
+        value: 2

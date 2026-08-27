@@ -1,0 +1,27 @@
+name: Platform improvement
+description: Propose a focused capability or safety improvement
+title: "feature: "
+labels:
+  - enhancement
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem
+      description: What operator or developer problem should this solve?
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed change
+      description: Describe the desired behavior, not only a preferred tool.
+    validations:
+      required: true
+  - type: textarea
+    id: operations
+    attributes:
+      label: Operational impact
+      description: Cover rollout, rollback, security, observability, and cost.
+    validations:
+      required: true

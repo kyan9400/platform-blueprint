@@ -1,0 +1,75 @@
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: flagger
+  namespace: ingress-nginx
+spec:
+  chart:
+    spec:
+      chart: flagger
+      sourceRef:
+        kind: HelmRepository
+        name: flagger
+        namespace: flux-system
+      version: 1.44.0
+  dependsOn:
+    - name: ingress-nginx
+      namespace: ingress-nginx
+  install:
+    remediation:
+      retries: 3
+  interval: 30m
+  releaseName: flagger
+  upgrade:
+    cleanupOnFail: true
+    remediation:
+      retries: 3
+  values:
+    meshProvider: nginx
+    metricsServer: http://flagger-prometheus.ingress-nginx:9090
+    prometheus:
+      install: true
+      securityContext:
+        enabled: true
+    resources:
+      limits:
+        cpu: 500m
+        memory: 256Mi
+      requests:
+        cpu: 100m
+        memory: 128Mi
+---
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: flagger-loadtester
+  namespace: flagger-system
+spec:
+  chart:
+    spec:
+      chart: loadtester
+      sourceRef:
+        kind: HelmRepository
+        name: flagger
+        namespace: flux-system
+      version: 0.38.0
+  dependsOn:
+    - name: flagger
+      namespace: ingress-nginx
+  install:
+    remediation:
+      retries: 3
+  interval: 30m
+  releaseName: flagger-loadtester
+  upgrade:
+    cleanupOnFail: true
+    remediation:
+      retries: 3
+  values:
+    resources:
+      limits:
+        cpu: 200m
+        memory: 128Mi
+      requests:
+        cpu: 20m
+        memory: 32Mi

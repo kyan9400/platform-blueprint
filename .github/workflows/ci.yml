@@ -1,0 +1,144 @@
+name: CI
+
+"on":
+  pull_request:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  validate:
+    name: Validate platform declarations
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09  # v5
+
+      - name: Install Terraform
+        uses: hashicorp/setup-terraform@b9cd54a3c349d3f38e8881555d616ced269862dd  # v3
+        with:
+          terraform_version: 1.16.0
+
+      - name: Install Kyverno CLI
+        uses: kyverno/action-install-cli@fcee92fca5c883169ef9927acf543e0b5fc58289  # v0.2.0
+        with:
+          release: v1.19.0
+
+      - name: Install YAML linter
+        run: pip install --disable-pip-version-check yamllint==1.37.1
+
+      - name: Lint YAML
+        run: yamllint .
+
+      - name: Render manifests
+        run: ./scripts/verify.sh
+
+      - name: Store rendered manifests
+        run: |
+          mkdir -p .artifacts
+          kubectl kustomize clusters/local > .artifacts/cluster-local.yaml
+          kubectl kustomize infrastructure/controllers > .artifacts/controllers.yaml
+          kubectl kustomize policies > .artifacts/policies.yaml
+          kubectl kustomize observability > .artifacts/observability.yaml
+          kubectl kustomize apps/podinfo/overlays/local > .artifacts/app-local.yaml
+          kubectl kustomize apps/podinfo/overlays/staging > .artifacts/app-staging.yaml
+          kubectl kustomize apps/podinfo/overlays/production > .artifacts/app-production.yaml
+
+      - name: Validate Kubernetes schemas
+        run: |
+          for manifest in .artifacts/*.yaml; do
+            docker run --rm -v "$PWD:/work" ghcr.io/yannh/kubeconform:v0.7.0 \
+              -ignore-missing-schemas -strict -summary "/work/$manifest"
+          done
+
+      - name: Test admission policies
+        run: kyverno test tests/policies --detailed-results
+
+      - name: Check Terraform formatting
+        run: terraform fmt -check -recursive infrastructure/terraform
+
+      - name: Initialize Terraform without a backend
+        working-directory: infrastructure/terraform/aws-eks
+        run: terraform init -backend=false -input=false
+
+      - name: Validate Terraform
+        working-directory: infrastructure/terraform/aws-eks
+        run: terraform validate
+
+      - name: Scan infrastructure configuration
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25  # v0.36.0
+        with:
+          exit-code: "1"
+          format: table
+          scan-ref: .
+          scan-type: config
+          severity: CRITICAL
+
+      - name: Upload rendered evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4
+        with:
+          name: rendered-manifests
+          path: .artifacts
+          retention-days: 7
+
+  kind-smoke:
+    name: Reconcile on kind
+    needs: validate
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09  # v5
+
+      - name: Create kind cluster
+        uses: helm/kind-action@a1b0e391336a6ee6713a0583f8c6240d70863de3  # v1.12.0
+        with:
+          cluster_name: platform-blueprint
+          config: clusters/local/kind.yaml
+          wait: 120s
+
+      - name: Install Flux CLI
+        uses: fluxcd/flux2/action@889be9d6cc8afa8ed639e1e1ba4ab678e3b38d8c  # v2.9.4
+        with:
+          version: 2.9.4
+
+      - name: Install Flux controllers
+        run: flux install --version=v2.9.4
+
+      - name: Reconcile platform controllers
+        run: |
+          kubectl apply -k infrastructure/controllers
+          kubectl wait helmrelease --all --all-namespaces \
+            --for=condition=Ready --timeout=15m
+
+      - name: Apply guardrails and observability
+        run: |
+          kubectl apply -k policies
+          kubectl wait clusterpolicy --all --for=condition=Ready --timeout=3m
+          kubectl apply -k observability
+
+      - name: Reconcile demo workload
+        run: |
+          kubectl apply -k apps/podinfo/overlays/local
+          kubectl -n platform-demo wait helmrelease/podinfo \
+            --for=condition=Ready --timeout=10m
+
+      - name: Run smoke test
+        run: ./scripts/smoke-test.sh
+
+      - name: Collect diagnostics
+        if: failure()
+        run: |
+          flux get all --all-namespaces || true
+          kubectl get all --all-namespaces || true
+          kubectl get events --all-namespaces --sort-by=.lastTimestamp || true

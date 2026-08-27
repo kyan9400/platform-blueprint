@@ -1,0 +1,7 @@
+environment             = "production"
+enable_public_endpoint  = false
+node_desired_size       = 3
+node_instance_types     = ["m7i.large", "m7a.large"]
+node_max_size           = 9
+node_min_size           = 3
+single_nat_gateway      = false

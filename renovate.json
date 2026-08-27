@@ -1,0 +1,18 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": [
+    "config:recommended",
+    "helpers:pinGitHubActionDigests"
+  ],
+  "dependencyDashboard": true,
+  "labels": ["dependencies"],
+  "minimumReleaseAge": "7 days",
+  "packageRules": [
+    {
+      "description": "Keep Kubernetes platform updates reviewable",
+      "matchManagers": ["helmv3", "terraform", "github-actions"],
+      "groupName": "platform dependencies",
+      "schedule": ["before 6am on monday"]
+    }
+  ]
+}

@@ -1,0 +1,57 @@
+apiVersion: cli.kyverno.io/v1alpha1
+kind: Test
+metadata:
+  name: platform-workload-standards
+policies:
+  - ../../policies/workload-standards.yaml
+resources:
+  - resources.yaml
+results:
+  - kind: Pod
+    policy: platform-workload-standards
+    resources:
+      - platform-policy-test/compliant
+    result: pass
+    rule: require-pod-security-context
+  - kind: Pod
+    policy: platform-workload-standards
+    resources:
+      - platform-policy-test/unsafe
+    result: fail
+    rule: require-pod-security-context
+  - kind: Pod
+    policy: platform-workload-standards
+    resources:
+      - platform-policy-test/compliant
+    result: pass
+    rule: require-container-security-context
+  - kind: Pod
+    policy: platform-workload-standards
+    resources:
+      - platform-policy-test/unsafe
+    result: fail
+    rule: require-container-security-context
+  - kind: Pod
+    policy: platform-workload-standards
+    resources:
+      - platform-policy-test/compliant
+    result: pass
+    rule: require-resource-bounds
+  - kind: Pod
+    policy: platform-workload-standards
+    resources:
+      - platform-policy-test/unsafe
+    result: fail
+    rule: require-resource-bounds
+  - kind: Pod
+    policy: platform-workload-standards
+    resources:
+      - platform-policy-test/compliant
+    result: pass
+    rule: disallow-latest-image-tag
+  - kind: Pod
+    policy: platform-workload-standards
+    resources:
+      - platform-policy-test/unsafe
+    result: fail
+    rule: disallow-latest-image-tag

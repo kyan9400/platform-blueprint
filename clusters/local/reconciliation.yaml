@@ -1,0 +1,66 @@
+apiVersion: kustomize.toolkit.fluxcd.io/v1
+kind: Kustomization
+metadata:
+  name: platform-controllers
+  namespace: flux-system
+spec:
+  interval: 10m
+  path: ./infrastructure/controllers
+  prune: true
+  sourceRef:
+    kind: GitRepository
+    name: platform-blueprint
+  timeout: 15m
+  wait: true
+---
+apiVersion: kustomize.toolkit.fluxcd.io/v1
+kind: Kustomization
+metadata:
+  name: policy-guardrails
+  namespace: flux-system
+spec:
+  dependsOn:
+    - name: platform-controllers
+  interval: 10m
+  path: ./policies
+  prune: true
+  sourceRef:
+    kind: GitRepository
+    name: platform-blueprint
+  timeout: 5m
+  wait: true
+---
+apiVersion: kustomize.toolkit.fluxcd.io/v1
+kind: Kustomization
+metadata:
+  name: observability
+  namespace: flux-system
+spec:
+  dependsOn:
+    - name: platform-controllers
+  interval: 10m
+  path: ./observability
+  prune: true
+  sourceRef:
+    kind: GitRepository
+    name: platform-blueprint
+  timeout: 5m
+  wait: true
+---
+apiVersion: kustomize.toolkit.fluxcd.io/v1
+kind: Kustomization
+metadata:
+  name: demo-workload
+  namespace: flux-system
+spec:
+  dependsOn:
+    - name: policy-guardrails
+    - name: observability
+  interval: 5m
+  path: ./apps/podinfo/overlays/local
+  prune: true
+  sourceRef:
+    kind: GitRepository
+    name: platform-blueprint
+  timeout: 10m
+  wait: true

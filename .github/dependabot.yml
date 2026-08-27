@@ -1,0 +1,16 @@
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+    groups:
+      actions:
+        patterns:
+          - "*"
+  - package-ecosystem: terraform
+    directory: /infrastructure/terraform/aws-eks
+    schedule:
+      interval: weekly
+      day: monday

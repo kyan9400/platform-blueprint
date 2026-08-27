@@ -1,0 +1,61 @@
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: ingress-nginx
+  namespace: ingress-nginx
+spec:
+  chart:
+    spec:
+      chart: ingress-nginx
+      sourceRef:
+        kind: HelmRepository
+        name: ingress-nginx
+        namespace: flux-system
+      version: 4.15.1
+  install:
+    remediation:
+      retries: 3
+  interval: 30m
+  releaseName: ingress-nginx
+  upgrade:
+    cleanupOnFail: true
+    remediation:
+      retries: 3
+  values:
+    controller:
+      allowSnippetAnnotations: false
+      config:
+        allow-snippet-annotations: "false"
+        enable-modsecurity: "true"
+        hide-headers: Server
+      hostPort:
+        enabled: true
+        ports:
+          http: 80
+          https: 443
+      ingressClassResource:
+        default: true
+      kind: DaemonSet
+      metrics:
+        enabled: true
+      nodeSelector:
+        ingress-ready: "true"
+      podAnnotations:
+        prometheus.io/port: "10254"
+        prometheus.io/scrape: "true"
+      resources:
+        limits:
+          cpu: 500m
+          memory: 256Mi
+        requests:
+          cpu: 100m
+          memory: 128Mi
+      service:
+        type: ClusterIP
+      tolerations:
+        - effect: NoSchedule
+          key: node-role.kubernetes.io/control-plane
+          operator: Exists
+        - effect: NoSchedule
+          key: node-role.kubernetes.io/master
+          operator: Exists

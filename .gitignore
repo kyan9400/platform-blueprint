@@ -1,0 +1,8 @@
+.artifacts/
+.terraform/
+*.tfstate
+*.tfstate.*
+*.tfplan
+crash.log
+.DS_Store
+Thumbs.db

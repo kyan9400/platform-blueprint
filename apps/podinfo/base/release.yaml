@@ -1,0 +1,58 @@
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: podinfo
+  namespace: platform-demo
+spec:
+  chartRef:
+    kind: OCIRepository
+    name: podinfo
+  install:
+    remediation:
+      retries: 3
+  interval: 10m
+  releaseName: podinfo
+  upgrade:
+    cleanupOnFail: true
+    remediation:
+      retries: 3
+      strategy: rollback
+  values:
+    hpa:
+      enabled: false
+    image:
+      pullPolicy: IfNotPresent
+      repository: ghcr.io/stefanprodan/podinfo
+      tag: 6.14.1@sha256:f9537f729129d339aaef049b76ab2cd4ff06a424f99e5f6a5923c10621018fb1
+    ingress:
+      enabled: false
+    podSecurityContext:
+      fsGroup: 10000
+      fsGroupChangePolicy: OnRootMismatch
+      runAsNonRoot: true
+      runAsUser: 10000
+      seccompProfile:
+        type: RuntimeDefault
+    replicaCount: 2
+    resources:
+      limits:
+        cpu: 500m
+        memory: 256Mi
+      requests:
+        cpu: 100m
+        memory: 64Mi
+    securityContext:
+      allowPrivilegeEscalation: false
+      capabilities:
+        drop:
+          - ALL
+      readOnlyRootFilesystem: true
+      runAsNonRoot: true
+    serviceMonitor:
+      additionalLabels:
+        release: kube-prometheus-stack
+      enabled: true
+      interval: 15s
+    ui:
+      color: "#0f766e"
+      message: Platform Blueprint
