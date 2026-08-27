@@ -32,6 +32,10 @@ $forwardLog = Join-Path ([System.IO.Path]::GetTempPath()) "platform-blueprint-po
 $forward = Start-Process kubectl -WindowStyle Hidden -PassThru -RedirectStandardOutput $forwardLog `
     -RedirectStandardError "$forwardLog.err" `
     -ArgumentList "-n", "platform-demo", "port-forward", "service/podinfo", "18080:9898"
+$ingressForwardLog = Join-Path ([System.IO.Path]::GetTempPath()) "platform-blueprint-ingress-forward.log"
+$ingressForward = Start-Process kubectl -WindowStyle Hidden -PassThru `
+    -RedirectStandardOutput $ingressForwardLog -RedirectStandardError "$ingressForwardLog.err" `
+    -ArgumentList "-n", "ingress-nginx", "port-forward", "service/ingress-nginx-controller", "18081:80"
 
 try {
     $serviceReady = $false
@@ -48,13 +52,26 @@ try {
 
     if (-not $serviceReady) { throw "Podinfo service did not answer through kubectl port-forward" }
 
+    $ingressReady = $false
     $headers = @{ Host = "podinfo.local" }
-    Invoke-WebRequest -UseBasicParsing -TimeoutSec 10 -Headers $headers `
-        -Uri http://127.0.0.1/readyz *> $null
+    for ($attempt = 1; $attempt -le 30 -and -not $ingressReady; $attempt++) {
+        try {
+            Invoke-WebRequest -UseBasicParsing -TimeoutSec 5 -Headers $headers `
+                -Uri http://127.0.0.1:18081/readyz *> $null
+            $ingressReady = $true
+        }
+        catch {
+            Start-Sleep -Seconds 2
+        }
+    }
+
+    if (-not $ingressReady) { throw "Podinfo ingress route did not answer through kubectl port-forward" }
 }
 finally {
     if (-not $forward.HasExited) { Stop-Process -Id $forward.Id }
-    Remove-Item -LiteralPath $forwardLog, "$forwardLog.err" -Force -ErrorAction SilentlyContinue
+    if (-not $ingressForward.HasExited) { Stop-Process -Id $ingressForward.Id }
+    Remove-Item -LiteralPath $forwardLog, "$forwardLog.err", $ingressForwardLog, `
+        "$ingressForwardLog.err" -Force -ErrorAction SilentlyContinue
 }
 
 kubectl -n platform-demo get canary podinfo

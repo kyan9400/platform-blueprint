@@ -31,12 +31,17 @@ done
 }
 
 forward_log="$(mktemp)"
+ingress_forward_log="$(mktemp)"
 kubectl -n platform-demo port-forward service/podinfo 18080:9898 \
   >"$forward_log" 2>&1 &
 forward_pid=$!
+kubectl -n ingress-nginx port-forward service/ingress-nginx-controller 18081:80 \
+  >"$ingress_forward_log" 2>&1 &
+ingress_forward_pid=$!
 cleanup() {
   kill "$forward_pid" 2>/dev/null || true
-  rm -f "$forward_log"
+  kill "$ingress_forward_pid" 2>/dev/null || true
+  rm -f "$forward_log" "$ingress_forward_log"
 }
 trap cleanup EXIT
 
@@ -56,10 +61,22 @@ if [[ "$service_ready" != "true" ]]; then
   exit 1
 fi
 
-curl --retry 12 --retry-all-errors --retry-delay 2 \
-  --connect-timeout 2 --max-time 10 -fsS \
-  -H "Host: podinfo.local" \
-  http://127.0.0.1/readyz >/dev/null
+ingress_ready=false
+for _ in $(seq 1 30); do
+  if curl --connect-timeout 2 --max-time 5 -fsS \
+    -H "Host: podinfo.local" \
+    http://127.0.0.1:18081/readyz >/dev/null; then
+    ingress_ready=true
+    break
+  fi
+  sleep 2
+done
+
+if [[ "$ingress_ready" != "true" ]]; then
+  cat "$ingress_forward_log" >&2
+  echo "Podinfo ingress route did not answer through kubectl port-forward" >&2
+  exit 1
+fi
 
 kubectl -n platform-demo get canary podinfo
 echo "smoke test passed"
