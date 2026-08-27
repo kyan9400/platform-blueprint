@@ -49,7 +49,6 @@ spec:
           protocol: TCP
   podSelector:
     matchLabels:
-      app.kubernetes.io/instance: podinfo
       app.kubernetes.io/name: podinfo
   policyTypes:
     - Egress
