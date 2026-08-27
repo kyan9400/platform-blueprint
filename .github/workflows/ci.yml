@@ -125,7 +125,8 @@ jobs:
       - name: Apply guardrails and observability
         run: |
           kubectl apply -k policies
-          kubectl wait validatingpolicy --all --for=condition=Ready --timeout=3m
+          kubectl wait validatingpolicy --all \
+            --for=jsonpath='{.status.conditionStatus.ready}'=true --timeout=3m
           kubectl apply -k observability
 
       - name: Reconcile demo workload
@@ -141,5 +142,6 @@ jobs:
         if: failure()
         run: |
           flux get all --all-namespaces || true
+          kubectl get validatingpolicy -o yaml || true
           kubectl get all --all-namespaces || true
           kubectl get events --all-namespaces --sort-by=.lastTimestamp || true
