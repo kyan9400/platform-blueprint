@@ -1,5 +1,7 @@
 # Platform Blueprint
 
+[![CI](https://github.com/kyan9400/platform-blueprint/actions/workflows/ci.yml/badge.svg)](https://github.com/kyan9400/platform-blueprint/actions/workflows/ci.yml)
+
 An opinionated GitOps reference platform for running a real Kubernetes workload with progressive delivery, admission controls, observability, and a reproducible cloud path.
 
 The demo workload is [Podinfo](https://github.com/stefanprodan/podinfo), consumed as a versioned OCI Helm chart. This repository owns the platform layer around it: cluster reconciliation, release safety, policies, SLOs, local automation, and AWS infrastructure as code.
