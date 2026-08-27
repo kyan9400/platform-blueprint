@@ -1,92 +1,71 @@
-apiVersion: kyverno.io/v1
-kind: ClusterPolicy
+apiVersion: policies.kyverno.io/v1
+kind: ValidatingPolicy
 metadata:
   name: platform-workload-standards
   annotations:
     policies.kyverno.io/category: Platform security
     policies.kyverno.io/description: >-
-      Enforces the minimum runtime and resource controls for platform workloads.
+      Enforces the minimum runtime, resource, and image controls for platform workloads.
     policies.kyverno.io/severity: high
     policies.kyverno.io/subject: Pod
 spec:
-  admission: true
-  background: true
-  emitWarning: false
-  rules:
-    - match:
-        any:
-          - resources:
-              kinds:
-                - Pod
-              namespaces:
-                - platform-*
-      name: require-pod-security-context
-      validate:
-        allowExistingViolations: false
-        failureAction: Enforce
-        message: Pods must run as non-root with the RuntimeDefault seccomp profile.
-        pattern:
-          spec:
-            securityContext:
-              runAsNonRoot: true
-              seccompProfile:
-                type: RuntimeDefault
-    - match:
-        any:
-          - resources:
-              kinds:
-                - Pod
-              namespaces:
-                - platform-*
-      name: require-container-security-context
-      validate:
-        allowExistingViolations: false
-        failureAction: Enforce
-        foreach:
-          - list: request.object.spec.containers
-            pattern:
-              securityContext:
-                allowPrivilegeEscalation: false
-                capabilities:
-                  drop:
-                    - ALL
-                runAsNonRoot: true
-        message: Containers must be non-root, drop Linux capabilities, and block privilege escalation.
-    - match:
-        any:
-          - resources:
-              kinds:
-                - Pod
-              namespaces:
-                - platform-*
-      name: require-resource-bounds
-      validate:
-        allowExistingViolations: false
-        failureAction: Enforce
-        foreach:
-          - list: request.object.spec.containers
-            pattern:
-              resources:
-                limits:
-                  cpu: "?*"
-                  memory: "?*"
-                requests:
-                  cpu: "?*"
-                  memory: "?*"
-        message: Containers must declare CPU and memory requests and limits.
-    - match:
-        any:
-          - resources:
-              kinds:
-                - Pod
-              namespaces:
-                - platform-*
-      name: disallow-latest-image-tag
-      validate:
-        allowExistingViolations: false
-        failureAction: Enforce
-        foreach:
-          - list: request.object.spec.containers
-            pattern:
-              image: "!*:latest"
-        message: Workload images must use an explicit, non-latest version.
+  evaluation:
+    admission:
+      enabled: true
+    background:
+      enabled: true
+  failurePolicy: Fail
+  matchConditions:
+    - expression: object.metadata.namespace.startsWith('platform-')
+      name: platform-namespace
+  matchConstraints:
+    resourceRules:
+      - apiGroups:
+          - ""
+        apiVersions:
+          - v1
+        operations:
+          - CREATE
+          - UPDATE
+        resources:
+          - pods
+  validationActions:
+    - Deny
+  validations:
+    - expression: >-
+        has(object.spec.securityContext) &&
+        has(object.spec.securityContext.runAsNonRoot) &&
+        object.spec.securityContext.runAsNonRoot &&
+        has(object.spec.securityContext.seccompProfile) &&
+        object.spec.securityContext.seccompProfile.type == 'RuntimeDefault'
+      message: Pods must run as non-root with the RuntimeDefault seccomp profile.
+    - expression: >-
+        variables.allContainers.all(container,
+          has(container.securityContext) &&
+          has(container.securityContext.runAsNonRoot) &&
+          container.securityContext.runAsNonRoot &&
+          has(container.securityContext.allowPrivilegeEscalation) &&
+          !container.securityContext.allowPrivilegeEscalation &&
+          has(container.securityContext.capabilities) &&
+          has(container.securityContext.capabilities.drop) &&
+          container.securityContext.capabilities.drop.exists(capability, capability == 'ALL'))
+      message: Containers must be non-root, drop Linux capabilities, and block privilege escalation.
+    - expression: >-
+        variables.allContainers.all(container,
+          has(container.resources) &&
+          has(container.resources.requests) &&
+          has(container.resources.requests.cpu) &&
+          has(container.resources.requests.memory) &&
+          has(container.resources.limits) &&
+          has(container.resources.limits.cpu) &&
+          has(container.resources.limits.memory))
+      message: Containers must declare CPU and memory requests and limits.
+    - expression: >-
+        variables.allContainers.all(container, container.image.contains('@sha256:'))
+      message: Workload images must be pinned to a sha256 digest.
+  variables:
+    - expression: >-
+        object.spec.containers +
+        object.spec.?initContainers.orValue([]) +
+        object.spec.?ephemeralContainers.orValue([])
+      name: allContainers

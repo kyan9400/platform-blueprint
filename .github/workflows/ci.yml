@@ -125,7 +125,7 @@ jobs:
       - name: Apply guardrails and observability
         run: |
           kubectl apply -k policies
-          kubectl wait clusterpolicy --all --for=condition=Ready --timeout=3m
+          kubectl wait validatingpolicy --all --for=condition=Ready --timeout=3m
           kubectl apply -k observability
 
       - name: Reconcile demo workload

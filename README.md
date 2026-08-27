@@ -12,7 +12,7 @@ The demo workload is [Podinfo](https://github.com/stefanprodan/podinfo), consume
 | GitOps | Flux pulls declared cluster state and continuously reconciles drift |
 | Progressive delivery | Flagger shifts NGINX traffic in measured steps and rolls back on failed checks |
 | Supply-chain discipline | OCI chart digest pinning, fixed tool versions, immutable GitHub Action SHAs, Trivy scans |
-| Workload security | Restricted Pod Security Standards, Kyverno admission policies, default-deny network policy |
+| Workload security | Restricted Pod Security Standards, Kyverno CEL admission policies, default-deny network policy |
 | Reliability | Probes, resource bounds, disruption budget, Prometheus SLO rules, runbooks |
 | Cloud path | Terraform for a private-endpoint Amazon EKS cluster and managed node group |
 | Verification | Manifest rendering, schema checks, policy tests, Terraform validation, and a kind smoke test |

@@ -30,23 +30,36 @@ done
   exit 1
 }
 
-loadtester="$(kubectl -n flagger-system get deployment \
-  -l app.kubernetes.io/name=loadtester \
-  -o jsonpath='{.items[0].metadata.name}')"
-
-[[ -n "$loadtester" ]] || {
-  echo "Flagger load tester was not found" >&2
-  exit 1
+forward_log="$(mktemp)"
+kubectl -n platform-demo port-forward service/podinfo 18080:9898 \
+  >"$forward_log" 2>&1 &
+forward_pid=$!
+cleanup() {
+  kill "$forward_pid" 2>/dev/null || true
+  rm -f "$forward_log"
 }
+trap cleanup EXIT
 
-kubectl -n flagger-system exec deployment/"$loadtester" -- \
-  curl --connect-timeout 5 --max-time 15 -fsS \
-  http://podinfo.platform-demo:9898/readyz
+service_ready=false
+for _ in $(seq 1 30); do
+  if curl --connect-timeout 2 --max-time 5 -fsS \
+    http://127.0.0.1:18080/readyz >/dev/null; then
+    service_ready=true
+    break
+  fi
+  sleep 2
+done
 
-kubectl -n flagger-system exec deployment/"$loadtester" -- \
-  curl --connect-timeout 5 --max-time 15 -fsS \
+if [[ "$service_ready" != "true" ]]; then
+  cat "$forward_log" >&2
+  echo "Podinfo service did not answer through kubectl port-forward" >&2
+  exit 1
+fi
+
+curl --retry 12 --retry-all-errors --retry-delay 2 \
+  --connect-timeout 2 --max-time 10 -fsS \
   -H "Host: podinfo.local" \
-  http://ingress-nginx-controller.ingress-nginx/readyz
+  http://127.0.0.1/readyz >/dev/null
 
 kubectl -n platform-demo get canary podinfo
 echo "smoke test passed"

@@ -61,7 +61,7 @@ The base contains invariant workload controls. Kustomize overlays change only en
 
 - GitHub is the desired-state and review boundary.
 - Flux service accounts are the cluster mutation boundary.
-- Kyverno is the workload admission boundary.
+- Kyverno CEL policies are the workload admission boundary.
 - NGINX is the external traffic boundary.
 - Prometheus metrics are release inputs, not application authorization inputs.
 

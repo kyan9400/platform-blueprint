@@ -28,21 +28,34 @@ for ($attempt = 1; $attempt -le 36 -and -not $endpoint; $attempt++) {
 
 if (-not $endpoint) { throw "Podinfo service has no ready endpoint" }
 
-$loadtester = kubectl -n flagger-system get deployment `
-    -l app.kubernetes.io/name=loadtester `
-    -o jsonpath='{.items[0].metadata.name}'
+$forwardLog = Join-Path ([System.IO.Path]::GetTempPath()) "platform-blueprint-port-forward.log"
+$forward = Start-Process kubectl -WindowStyle Hidden -PassThru -RedirectStandardOutput $forwardLog `
+    -RedirectStandardError "$forwardLog.err" `
+    -ArgumentList "-n", "platform-demo", "port-forward", "service/podinfo", "18080:9898"
 
-if (-not $loadtester) { throw "Flagger load tester was not found" }
+try {
+    $serviceReady = $false
+    for ($attempt = 1; $attempt -le 30 -and -not $serviceReady; $attempt++) {
+        try {
+            Invoke-WebRequest -UseBasicParsing -TimeoutSec 5 `
+                -Uri http://127.0.0.1:18080/readyz *> $null
+            $serviceReady = $true
+        }
+        catch {
+            Start-Sleep -Seconds 2
+        }
+    }
 
-kubectl -n flagger-system exec "deployment/$loadtester" -- `
-    curl --connect-timeout 5 --max-time 15 -fsS http://podinfo.platform-demo:9898/readyz
-if ($LASTEXITCODE -ne 0) { throw "Podinfo readiness request failed" }
+    if (-not $serviceReady) { throw "Podinfo service did not answer through kubectl port-forward" }
 
-kubectl -n flagger-system exec "deployment/$loadtester" -- `
-    curl --connect-timeout 5 --max-time 15 -fsS `
-    -H "Host: podinfo.local" `
-    http://ingress-nginx-controller.ingress-nginx/readyz
-if ($LASTEXITCODE -ne 0) { throw "Podinfo ingress request failed" }
+    $headers = @{ Host = "podinfo.local" }
+    Invoke-WebRequest -UseBasicParsing -TimeoutSec 10 -Headers $headers `
+        -Uri http://127.0.0.1/readyz *> $null
+}
+finally {
+    if (-not $forward.HasExited) { Stop-Process -Id $forward.Id }
+    Remove-Item -LiteralPath $forwardLog, "$forwardLog.err" -Force -ErrorAction SilentlyContinue
+}
 
 kubectl -n platform-demo get canary podinfo
 Write-Output "smoke test passed"

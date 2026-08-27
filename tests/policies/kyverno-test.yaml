@@ -7,51 +7,18 @@ policies:
 resources:
   - resources.yaml
 results:
-  - kind: Pod
+  - isValidatingPolicy: true
+    kind: Pod
     policy: platform-workload-standards
     resources:
       - platform-policy-test/compliant
     result: pass
-    rule: require-pod-security-context
-  - kind: Pod
+  - isValidatingPolicy: true
+    kind: Pod
     policy: platform-workload-standards
     resources:
-      - platform-policy-test/unsafe
+      - platform-policy-test/unsafe-pod-context
+      - platform-policy-test/unsafe-container-context
+      - platform-policy-test/unsafe-resources
+      - platform-policy-test/unsafe-image
     result: fail
-    rule: require-pod-security-context
-  - kind: Pod
-    policy: platform-workload-standards
-    resources:
-      - platform-policy-test/compliant
-    result: pass
-    rule: require-container-security-context
-  - kind: Pod
-    policy: platform-workload-standards
-    resources:
-      - platform-policy-test/unsafe
-    result: fail
-    rule: require-container-security-context
-  - kind: Pod
-    policy: platform-workload-standards
-    resources:
-      - platform-policy-test/compliant
-    result: pass
-    rule: require-resource-bounds
-  - kind: Pod
-    policy: platform-workload-standards
-    resources:
-      - platform-policy-test/unsafe
-    result: fail
-    rule: require-resource-bounds
-  - kind: Pod
-    policy: platform-workload-standards
-    resources:
-      - platform-policy-test/compliant
-    result: pass
-    rule: disallow-latest-image-tag
-  - kind: Pod
-    policy: platform-workload-standards
-    resources:
-      - platform-policy-test/unsafe
-    result: fail
-    rule: disallow-latest-image-tag
