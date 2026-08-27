@@ -44,18 +44,18 @@ jobs:
 
       - name: Store rendered manifests
         run: |
-          mkdir -p .artifacts
-          kubectl kustomize clusters/local > .artifacts/cluster-local.yaml
-          kubectl kustomize infrastructure/controllers > .artifacts/controllers.yaml
-          kubectl kustomize policies > .artifacts/policies.yaml
-          kubectl kustomize observability > .artifacts/observability.yaml
-          kubectl kustomize apps/podinfo/overlays/local > .artifacts/app-local.yaml
-          kubectl kustomize apps/podinfo/overlays/staging > .artifacts/app-staging.yaml
-          kubectl kustomize apps/podinfo/overlays/production > .artifacts/app-production.yaml
+          mkdir -p rendered
+          kubectl kustomize clusters/local > rendered/cluster-local.yaml
+          kubectl kustomize infrastructure/controllers > rendered/controllers.yaml
+          kubectl kustomize policies > rendered/policies.yaml
+          kubectl kustomize observability > rendered/observability.yaml
+          kubectl kustomize apps/podinfo/overlays/local > rendered/app-local.yaml
+          kubectl kustomize apps/podinfo/overlays/staging > rendered/app-staging.yaml
+          kubectl kustomize apps/podinfo/overlays/production > rendered/app-production.yaml
 
       - name: Validate Kubernetes schemas
         run: |
-          for manifest in .artifacts/*.yaml; do
+          for manifest in rendered/*.yaml; do
             docker run --rm -v "$PWD:/work" ghcr.io/yannh/kubeconform:v0.7.0 \
               -ignore-missing-schemas -strict -summary "/work/$manifest"
           done
@@ -74,7 +74,7 @@ jobs:
           scan-ref: .
           scan-type: config
           severity: CRITICAL
-          skip-dirs: "**/.terraform"
+          trivy-config: trivy.yaml
 
       - name: Initialize Terraform without a backend
         working-directory: infrastructure/terraform/aws-eks
@@ -89,7 +89,7 @@ jobs:
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1
         with:
           name: rendered-manifests
-          path: .artifacts
+          path: rendered
           retention-days: 7
 
   kind-smoke:

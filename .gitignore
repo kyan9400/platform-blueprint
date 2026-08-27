@@ -1,4 +1,4 @@
-.artifacts/
+rendered/
 .terraform/
 *.tfstate
 *.tfstate.*
