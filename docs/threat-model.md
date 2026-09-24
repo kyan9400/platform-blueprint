@@ -12,7 +12,7 @@
 
 | Threat | Control | Residual risk |
 | --- | --- | --- |
-| Mutable or substituted dependency | OCI chart and container image digests, fixed versions, Renovate review | Signature verification is not yet enforced at admission |
+| Mutable or substituted dependency | OCI chart and container image digests, fixed versions, Dependabot review | Signature verification is not yet enforced at admission |
 | Unreviewed cluster mutation | Pull-based Flux reconciliation and read-only CI permissions | A compromised Flux service account can change in-scope resources |
 | Unsafe workload configuration | Restricted Pod Security Standards and enforced Kyverno rules | Controller namespaces are privileged trust zones |
 | Bad release reaches all users | Incremental traffic shift, acceptance test, success/latency gates | Metrics can be incomplete or misleading during monitoring failure |

@@ -6,3 +6,13 @@ rendered/
 crash.log
 .DS_Store
 Thumbs.db
+
+# Local Terraform inputs created from the *.example files
+backend.hcl
+*.tfvars
+!*.tfvars.example
+
+# Local environment files
+.env
+.env.*
+!.env.example
